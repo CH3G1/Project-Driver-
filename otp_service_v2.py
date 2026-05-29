@@ -931,7 +931,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 if __name__ == "__main__":
     # On Railway/cloud: bind 0.0.0.0 so it's publicly accessible
     # Locally: bind localhost only
-    HOST = "0.0.0.0" if os.environ.get("RAILWAY_ENVIRONMENT") else "localhost"
+    HOST = "0.0.0.0"
 
     server = http.server.ThreadingHTTPServer((HOST, PORT), Handler)
 
