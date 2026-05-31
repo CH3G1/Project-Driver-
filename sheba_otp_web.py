@@ -101,8 +101,18 @@ def send_otp():
     mobile = data.get("mobile", "").strip()
     if not mobile:
         return jsonify({"ok": False, "error": "No mobile number"})
-    if not mobile.startswith("+"):
-        mobile = f"+88{mobile}" if not mobile.startswith("88") else f"+{mobile}"
+    # Normalize to +88XXXXXXXXXX — handles all formats:
+    # +8801..., 8801..., 01..., 1...
+    if mobile.startswith("+"):
+        mobile = mobile[1:]           # strip leading +
+    if mobile.startswith("880"):
+        mobile = "+" + mobile         # 8801... → +8801...
+    elif mobile.startswith("88"):
+        mobile = "+" + mobile         # 881... → +881...
+    elif mobile.startswith("0"):
+        mobile = "+88" + mobile       # 01... → +8801...
+    else:
+        mobile = "+880" + mobile      # 1... → +8801...
     api_token = get_fresh_token()
     if not api_token:
         return jsonify({"ok": False, "error": "Could not get API token"})
