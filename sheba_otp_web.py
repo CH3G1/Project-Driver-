@@ -38,13 +38,23 @@ HEADERS = {
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def get_fresh_token():
     try:
-        r = requests.get(GENERATE_URL, headers=HEADERS, timeout=10)
+        r = requests.get(GENERATE_URL, headers=HEADERS, timeout=15)
+        log.info(f"Token status: {r.status_code} | body: '{r.text[:200]}'")
+        if not r.text.strip():
+            log.error("EMPTY RESPONSE — Sheba API likely blocking Render IP")
+            return None
         data = r.json()
-        if data.get("code") == 200:
-            token = data.get("token")
+        # Handle multiple possible response structures
+        token = (
+            data.get("token") or
+            data.get("data", {}).get("token") or
+            data.get("result", {}).get("token") or
+            data.get("api_token")
+        )
+        if token:
             log.info(f"Fresh token: {token[:20]}...")
             return token
-        log.error(f"Token failed: {data}")
+        log.error(f"Token not found in response: {data}")
         return None
     except Exception as e:
         log.error(f"Token error: {e}")
